@@ -3,98 +3,146 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	"github.com/ravvio/awst/ui/style"
+	"github.com/ravvio/awst/ui/tables"
+	"github.com/ravvio/awst/utils"
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	logsListCommad.Flags().Int32P("limit", "l", 50, "Maximum number of groups to fetch")
-	logsListCommad.Flags().StringP("pattern", "e", "", "Pattern filter on log group name")
-	logsListCommad.Flags().StringP("prefix", "p", "", "Prefix filter on log group name")
+	logsListCommad.Flags().BoolP("all", "a", false, "fetch all log groups")
 
-	logsListCommad.Flags().Bool("retention", false, "Show retention")
-	logsListCommad.Flags().Bool("arn", false, "Show arn")
+	logsListCommad.Flags().Int32P("limit", "l", 50, "limit number of groups to fetch")
+
+	logsListCommad.Flags().StringP("pattern", "e", "", "pattern filter on log group name")
+	logsListCommad.Flags().StringP("prefix", "p", "", "prefix filter on log group name")
+
+	logsListCommad.Flags().Bool("retention", false, "show log groups retention")
+	logsListCommad.Flags().Bool("arn", false, "show log groups arn")
+	logsListCommad.Flags().Bool("streams", false, "show log groups streams")
 
 	logsListCommad.MarkFlagsMutuallyExclusive("pattern", "prefix")
+	logsListCommad.MarkFlagsMutuallyExclusive("all", "limit")
 }
+
+var (
+	keyIndex = "index"
+	keyCreationDate = "creation"
+	keyName = "name"
+	keyArn = "arn"
+	keyRetention = "retention"
+	keyStreams = "streams"
+)
 
 var logsListCommad = &cobra.Command{
 	Use:   "list",
-	Short: "List log groups",
+	Short: "List cloudwatch log groups",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Load config
 		cfg, err := config.LoadDefaultConfig(context.TODO())
-		checkErr(err)
-
-		// Load flag not used in params
-		showRetention, err := cmd.Flags().GetBool("retention")
-		checkErr(err)
-		showArn, err := cmd.Flags().GetBool("arn")
-		checkErr(err)
+		utils.CheckErr(err)
 
 		// Setup params using flags
 		params := &cloudwatchlogs.DescribeLogGroupsInput{}
 
 		limit, err := cmd.Flags().GetInt32("limit")
-		checkErr(err)
+		utils.CheckErr(err)
+		if limit < 0 || limit > 50 {
+			utils.CheckErr(fmt.Errorf("Limit must have a value between 0 and 50, was %d", limit))
+		}
 		params.Limit = &limit
 
 		pattern, err := cmd.Flags().GetString("pattern");
-		checkErr(err)
+		utils.CheckErr(err)
 		if pattern != "" {
 			params.LogGroupNamePattern = &pattern;
 		}
 
 		prefix, err := cmd.Flags().GetString("prefix");
-		checkErr(err)
+		utils.CheckErr(err)
 		if prefix != "" {
 			params.LogGroupNamePrefix = &prefix;
 		}
 
 		// Request
+		allPages, err := cmd.Flags().GetBool("all")
+		utils.CheckErr(err)
+
+		logGroups := []types.LogGroup{}
 		client := cloudwatchlogs.NewFromConfig(cfg)
-		output, err := client.DescribeLogGroups(context.TODO(), params)
-		checkErr(err)
+		for {
+			output, err := client.DescribeLogGroups(context.TODO(), params)
+			utils.CheckErr(err)
 
-		w := tabwriter.NewWriter(os.Stdout, 1, 2, 2, ' ', 0)
-		fields := []string{"#", "CreationDate", "Name"}
-		if showRetention {
-			fields = append(fields, "Retention")
-		}
-		if showArn {
-			fields = append(fields, "ARN")
-		}
-		heading := strings.Join(fields, "\t")
-		fmt.Fprintln(w, heading)
+			logGroups = append(logGroups, output.LogGroups...)
 
-		for index, object := range output.LogGroups {
-			fields := []string{
-				fmt.Sprintf("%d", index+1),
-				time.UnixMilli(*object.CreationTime).Format("2006-01-02"),
-				*object.LogGroupName,
+			if !allPages || output.NextToken == nil {
+				break
 			}
-			if showRetention {
-				fields = append(
-					fields,
-					fmt.Sprintf("%d days", object.RetentionInDays),
-				)
-			}
-			if showArn {
-				fields = append(
-					fields,
-					*object.LogGroupArn,
-				)
-			}
-			line := strings.Join(fields, "\t")
-			fmt.Fprintln(w, line)
+			params.NextToken = output.NextToken
 		}
-		err = w.Flush()
-		checkErr(err)
+
+		showStreams, err := cmd.Flags().GetBool("streams")
+		utils.CheckErr(err)
+		showRetention, err := cmd.Flags().GetBool("retention")
+		utils.CheckErr(err)
+		showArn, err := cmd.Flags().GetBool("arn")
+		utils.CheckErr(err)
+
+		// If streams are requested recover them
+		var streams = map[string][]string{}
+		if showStreams {
+			for _, group := range logGroups {
+				params := &cloudwatchlogs.DescribeLogStreamsInput{
+					LogGroupName: group.LogGroupName,
+				}
+				logStreams, err := client.DescribeLogStreams( context.TODO(), params)
+				utils.CheckErr(err)
+
+				var names = []string{}
+				for _, stream := range logStreams.LogStreams {
+					names = append(names, *stream.LogStreamName)
+				}
+				streams[*group.LogGroupName] = names
+			}
+		}
+
+		if len(logGroups) == 0 {
+			style.PrintInfo("No groups found")
+			return
+		}
+
+		// Setup table
+		columns := []tables.Column{
+			tables.NewColumn(keyIndex, "#", true),
+			tables.NewColumn(keyCreationDate, "Creation", true),
+			tables.NewColumn(keyName, "Name", true),
+			tables.NewColumn(keyArn, "ARN", showArn),
+			tables.NewColumn(keyRetention, "Retention", showRetention),
+			tables.NewColumn(keyStreams, "Streams", showStreams),
+		}
+
+		rows := []tables.Row{}
+		for index, group := range logGroups {
+			rows = append(rows, tables.Row{
+				keyIndex: fmt.Sprintf("%d", index+1),
+				keyCreationDate: time.UnixMilli(*group.CreationTime).Format("2006-01-02"),
+				keyName: *group.LogGroupName,
+				keyArn: *group.LogGroupArn,
+				keyRetention: fmt.Sprintf("%d days", group.RetentionInDays),
+				keyStreams: strings.Join(streams[*group.LogGroupName], ", "),
+			})
+		}
+
+		table := tables.New(columns).WithRows(rows)
+
+		// Render Table
+		fmt.Println(table.Render())
 	},
 }

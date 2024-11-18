@@ -54,9 +54,15 @@ var (
 
 	TitleStyle = lipgloss.NewStyle().Foreground(Primary).Bold(true)
 
-	TableCell = lipgloss.NewStyle().Align(lipgloss.Left)
-	TableCellRight = TableCell.Align(lipgloss.Right)
-	TableCellCenter = TableCell.Align(lipgloss.Center)
+	TableStyle = lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).BorderForeground(DimFg).
+		BorderTop(true).BorderBottom(true)
+	HeaderStyle = lipgloss.NewStyle().Foreground(Primary).Bold(true).Padding(0, 1)
+	RowStyle = lipgloss.NewStyle().Padding(0, 1)
+
+	LogTitle = lipgloss.NewStyle().Foreground(Primary).PaddingRight(1)
+	LogDate = lipgloss.NewStyle().Foreground(Secondary).PaddingRight(1)
+	LogContent = lipgloss.NewStyle().PaddingRight(1)
 )
 
 func StyleError(err string, args ...any) string {

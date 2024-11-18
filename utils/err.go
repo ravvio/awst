@@ -1,4 +1,4 @@
-package cmd
+package utils
 
 import (
 	"log"
@@ -7,7 +7,7 @@ import (
 	"github.com/ravvio/awst/ui/style"
 )
 
-func checkErr(err error) {
+func CheckErr(err error) {
 	if err != nil {
 		log.Printf("Error: %v", err)
 		style.PrintError("Error: " + err.Error())

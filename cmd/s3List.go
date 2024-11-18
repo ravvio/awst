@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/ravvio/awst/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -22,18 +23,18 @@ var s3listCommand = &cobra.Command{
 	Short: "",
 	Run: func(cmd *cobra.Command, args []string) {
 		limit, err := cmd.Flags().GetInt32("limit");
-		checkErr(err)
+		utils.CheckErr(err)
 
 		var region string;
 		regionFlag, err := cmd.Flags().GetString("region");
-		checkErr(err)
+		utils.CheckErr(err)
 		if regionFlag != "" {
 			region = regionFlag
 		}
 
 		// Load config
 		cfg, err :=  config.LoadDefaultConfig(context.TODO())
-		checkErr(err)
+		utils.CheckErr(err)
 
 		client := s3.NewFromConfig(cfg)
 
@@ -42,7 +43,7 @@ var s3listCommand = &cobra.Command{
 			BucketRegion: &region,
 		}
 		output, err := client.ListBuckets(context.TODO(), params)
-		checkErr(err)
+		utils.CheckErr(err)
 
 		w := tabwriter.NewWriter(os.Stdout, 1, 2, 2, ' ', 0)
 		fields := []string{"#", "CreationDate", "Name"}
@@ -59,6 +60,6 @@ var s3listCommand = &cobra.Command{
 			fmt.Fprintln(w, line)
 		}
 		err = w.Flush()
-		checkErr(err)
+		utils.CheckErr(err)
 	},
 }
