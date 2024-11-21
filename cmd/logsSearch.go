@@ -27,7 +27,7 @@ func init() {
 
 	logsSearchCommand.Flags().StringP("filter", "f", "", "pattern filter on log events")
 	logsSearchCommand.Flags().String("since", "1d", "moment in time to start the search, can be absolute or relative")
-	logsSearchCommand.Flags().String("to", "", "")
+	logsSearchCommand.Flags().String("until", "", "moment in time to end the search, can be absolute or relative")
 
 	logsSearchCommand.Flags().BoolP("tail", "t", false, "start live tail")
 
@@ -44,6 +44,8 @@ var logsSearchCommand = &cobra.Command{
 		// Load config
 		cfg, err := loadAwsConfig(context.TODO())
 		utils.CheckErr(err)
+
+		now := time.Now()
 
 		client := cloudwatchlogs.NewFromConfig(cfg)
 
@@ -102,9 +104,22 @@ var logsSearchCommand = &cobra.Command{
 			if t, err := utils.ParseDatetime(sinceDate); err == nil && t.UnixMilli() >= 0 {
 				fromUnix = t.UnixMilli()
 			} else if d, err := utils.ParseDuration(sinceDate); err == nil {
-				fromUnix = time.Now().UnixMilli() - d
+				fromUnix = now.UnixMilli() - d
 			} else {
-				utils.CheckErr(fmt.Errorf("Could not parse 'from' timestamp"))
+				utils.CheckErr(fmt.Errorf("Could not parse 'since' timestamp"))
+			}
+		}
+
+		untilDate, err := cmd.Flags().GetString("until")
+		var untilUnix int64
+		utils.CheckErr(err)
+		if untilDate != "" {
+			if t, err := utils.ParseDatetime(untilDate); err == nil && t.UnixMilli() >= 0 {
+				untilUnix = t.UnixMilli()
+			} else if d, err := utils.ParseDuration(untilDate); err == nil {
+				untilUnix = now.UnixMilli() - d
+			} else {
+				utils.CheckErr(fmt.Errorf("Could not parse 'until' timestamp"))
 			}
 		}
 
@@ -120,6 +135,7 @@ var logsSearchCommand = &cobra.Command{
 					LogGroupName:  group.LogGroupName,
 					Limit:         &limitEvents,
 					StartTime:     &fromUnix,
+					EndTime:       &untilUnix,
 				},
 			)
 			if !allEvents {
