@@ -26,7 +26,7 @@ func init() {
 	logsSearchCommand.Flags().Int32P("limit", "l", 10000, "limit number of log events to fetch from each group")
 
 	logsSearchCommand.Flags().StringP("filter", "f", "", "pattern filter on log events")
-	logsSearchCommand.Flags().String("from", "1d", "moment in time to start the search, can be absolute or relative")
+	logsSearchCommand.Flags().String("since", "1d", "moment in time to start the search, can be absolute or relative")
 	logsSearchCommand.Flags().String("to", "", "")
 
 	logsSearchCommand.Flags().BoolP("tail", "t", false, "start live tail")
@@ -95,13 +95,13 @@ var logsSearchCommand = &cobra.Command{
 		tail, err := cmd.Flags().GetBool("tail")
 		utils.CheckErr(err)
 
-		fromDate, err := cmd.Flags().GetString("from")
+		sinceDate, err := cmd.Flags().GetString("since")
 		var fromUnix int64
 		utils.CheckErr(err)
-		if fromDate != "" {
-			if t, err := utils.ParseDatetime(fromDate); err == nil && t.UnixMilli() >= 0 {
+		if sinceDate != "" {
+			if t, err := utils.ParseDatetime(sinceDate); err == nil && t.UnixMilli() >= 0 {
 				fromUnix = t.UnixMilli()
-			} else if d, err := utils.ParseDuration(fromDate); err == nil {
+			} else if d, err := utils.ParseDuration(sinceDate); err == nil {
 				fromUnix = time.Now().UnixMilli() - d
 			} else {
 				utils.CheckErr(fmt.Errorf("Could not parse 'from' timestamp"))

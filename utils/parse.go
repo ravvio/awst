@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"time"
@@ -42,6 +43,7 @@ func ParseDuration(duration string) (int64, error) {
 		return 0, err
 	}
 
+	var l = 0;
 	var t int64 = 0;
 	for _, m := range reg.FindAll([]byte(duration), -1) {
 		value, err := strconv.ParseInt(string(m[0:len(m)-1]), 10, 64)
@@ -62,6 +64,12 @@ func ParseDuration(duration string) (int64, error) {
 		case week:
 			t += value * 7 * 24 * time.Hour.Milliseconds()
 		}
+
+		l += len(m);
+	}
+
+	if l != len(duration) {
+		return 0, fmt.Errorf("could not parse full duration expression")
 	}
 
 	return t, nil
