@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
@@ -17,7 +18,7 @@ import (
 func init() {
 	logsSearchCommand.Flags().StringP("pattern", "e", "", "pattern filter on log group name")
 	logsSearchCommand.Flags().StringP("prefix", "p", "", "prefix filter on log group name")
-	logsSearchCommand.Flags().Bool("all-groups", true, "do not limit of log groups to use")
+	logsSearchCommand.Flags().Bool("all-groups", false, "do not limit of log groups to use")
 	logsSearchCommand.Flags().Int32("limit-groups", 50, "limit number of log groups to use")
 
 	logsSearchCommand.Flags().BoolP("all", "a", false, "do not limit of log events to fetch")
@@ -86,7 +87,7 @@ var logsSearchCommand = &cobra.Command{
 		// Request logs
 		filter, err := cmd.Flags().GetString("filter")
 		utils.CheckErr(err)
-		limit, err := cmd.Flags().GetInt32("limit")
+		limitEvents, err := cmd.Flags().GetInt32("limit")
 		utils.CheckErr(err)
 		allEvents, err := cmd.Flags().GetBool("all")
 		utils.CheckErr(err)
@@ -106,35 +107,34 @@ var logsSearchCommand = &cobra.Command{
 			}
 		}
 
+		var wg sync.WaitGroup
+
 		logs := []tlog.Log{}
 		for _, group := range logGroups {
 			params := &cloudwatchlogs.FilterLogEventsInput{
 				FilterPattern: &filter,
 				LogGroupName:  group.LogGroupName,
-				Limit:         &limit,
+				Limit:         &limitEvents,
 				StartTime:     &fromUnix,
 			}
-
-			for {
-				eventsOutput, err := client.FilterLogEvents(context.TODO(), params)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				res, err := fetchGroupLogs(
+					context.TODO(),
+					client,
+					params,
+					*group.LogGroupName,
+					allEvents,
+					limitEvents,
+				)
 				utils.CheckErr(err)
-
-				for _, event := range eventsOutput.Events {
-					logs = append(logs, tlog.Log{
-						GroupName: *group.LogGroupName,
-						Timestamp: time.UnixMilli(*event.Timestamp),
-						Message:   *event.Message,
-					})
-				}
-
-				if !allEvents ||
-				len(logs) >= int(limit) ||
-				eventsOutput.NextToken == nil {
-					break
-				}
-				params.NextToken = eventsOutput.NextToken
-			}
+				logs = append(logs, res...)
+			}()
 		}
+
+		// Wait for all goroutines to finish fetching
+		wg.Wait()
 
 		sort.Slice(logs, func(i, j int) bool {
 			return logs[i].Timestamp.Compare(logs[j].Timestamp) > 0
@@ -214,4 +214,37 @@ func handleStream(
 			}
 		}
 	}
+}
+
+func fetchGroupLogs(
+	ctx context.Context,
+	client *cloudwatchlogs.Client,
+	params *cloudwatchlogs.FilterLogEventsInput,
+	groupName string,
+	all bool,
+	limit int32,
+) ([]tlog.Log, error) {
+	logs := []tlog.Log{}
+	for {
+		eventsOutput, err := client.FilterLogEvents(ctx, params)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, event := range eventsOutput.Events {
+			logs = append(logs, tlog.Log{
+				GroupName: groupName,
+				Timestamp: time.UnixMilli(*event.Timestamp),
+				Message:   *event.Message,
+			})
+		}
+
+		if !all ||
+		len(logs) >= int(limit) ||
+		eventsOutput.NextToken == nil {
+			break
+		}
+		params.NextToken = eventsOutput.NextToken
+	}
+	return logs, nil
 }
