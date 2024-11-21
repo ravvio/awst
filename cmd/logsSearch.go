@@ -98,13 +98,13 @@ var logsSearchCommand = &cobra.Command{
 		utils.CheckErr(err)
 
 		sinceDate, err := cmd.Flags().GetString("since")
-		var fromUnix int64
+		var sinceUnix int64
 		utils.CheckErr(err)
 		if sinceDate != "" {
 			if t, err := utils.ParseDatetime(sinceDate); err == nil && t.UnixMilli() >= 0 {
-				fromUnix = t.UnixMilli()
+				sinceUnix = t.UnixMilli()
 			} else if d, err := utils.ParseDuration(sinceDate); err == nil {
-				fromUnix = now.UnixMilli() - d
+				sinceUnix = now.UnixMilli() - d
 			} else {
 				utils.CheckErr(fmt.Errorf("Could not parse 'since' timestamp"))
 			}
@@ -129,13 +129,15 @@ var logsSearchCommand = &cobra.Command{
 		for _, group := range logGroups {
 			fetcher := fetch.NewLogsFetcher(
 				context.TODO(),
-				client,
-				cloudwatchlogs.FilterLogEventsInput{
+				&fetch.LogsFetcherClient{
+					Client: client,
+					Params: cloudwatchlogs.FilterLogEventsInput{
+						LogGroupName: group.LogGroupName,
+						Limit: &limitEvents,
+						StartTime: &sinceUnix,
+						EndTime: &untilUnix,
 					FilterPattern: &filter,
-					LogGroupName:  group.LogGroupName,
-					Limit:         &limitEvents,
-					StartTime:     &fromUnix,
-					EndTime:       &untilUnix,
+					},
 				},
 			)
 			if !allEvents {
