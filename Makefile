@@ -1,9 +1,11 @@
 
+name = awst
+
 all: build
 
 build:
 	@echo "Building..."
-	@go build -o awst main.go
+	@go build -o ${name} main.go
 
 run:
 	@go run main.go
@@ -14,4 +16,6 @@ test:
 
 clean:
 	@echo "Cleaning..."
-	@rm -f main
+	@rm -f ${name}
+	@go mod tidy
+	@go clean
