@@ -3,63 +3,75 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
-	"strings"
-	"text/tabwriter"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/ravvio/awst/ui/tables"
 	"github.com/ravvio/awst/utils"
 	"github.com/spf13/cobra"
 )
 
 func init() {
+	s3listCommand.Flags().BoolP("all", "a", false, "Do not limit number of buckets to fetch")
 	s3listCommand.Flags().Int32P("limit", "l", 50, "Maximum number of buckets to fetch")
-	s3listCommand.Flags().StringP("region", "r", "", "Maximum number of buckets to fetch")
+
+	s3listCommand.MarkFlagsMutuallyExclusive("all", "limit")
 }
 
 var s3listCommand = &cobra.Command{
-	Use: "list",
+	Use:   "list",
 	Short: "",
 	Run: func(cmd *cobra.Command, args []string) {
-		limit, err := cmd.Flags().GetInt32("limit");
-		utils.CheckErr(err)
-
-		var region string;
-		regionFlag, err := cmd.Flags().GetString("region");
-		utils.CheckErr(err)
-		if regionFlag != "" {
-			region = regionFlag
-		}
-
 		// Load config
-		cfg, err :=  config.LoadDefaultConfig(context.TODO())
+		cfg, err := loadAwsConfig(context.TODO())
 		utils.CheckErr(err)
 
-		client := s3.NewFromConfig(cfg)
+		// Setup params
+		params := &s3.ListBucketsInput{}
 
-		params := &s3.ListBucketsInput{
-			MaxBuckets: &limit,
-			BucketRegion: &region,
+		region, err := cmd.Flags().GetString("region")
+		utils.CheckErr(err)
+		if region != "" {
+			params.BucketRegion = &region
 		}
+
+		all, err := cmd.Flags().GetBool("all")
+		utils.CheckErr(err)
+		if !all {
+			limit, err := cmd.Flags().GetInt32("limit")
+			utils.CheckErr(err)
+			params.MaxBuckets = &limit
+		}
+
+		// Request
+		client := s3.NewFromConfig(cfg)
 		output, err := client.ListBuckets(context.TODO(), params)
 		utils.CheckErr(err)
 
-		w := tabwriter.NewWriter(os.Stdout, 1, 2, 2, ' ', 0)
-		fields := []string{"#", "CreationDate", "Name"}
-		heading := strings.Join(fields, "\t")
-		fmt.Fprintln(w, heading)
+		// Setup table
+		var (
+			keyIndex        = "index"
+			keyCreationDate = "creation"
+			keyName         = "name"
+		)
 
-		for index, object := range output.Buckets {
-			fields := []string{
-				fmt.Sprintf("%d", index + 1),
-				object.CreationDate.Format("2006-01-02"),
-				*object.Name,
-			}
-			line := strings.Join(fields, "\t")
-			fmt.Fprintln(w, line)
+		columns := []tables.Column{
+			tables.NewColumn(keyIndex, "#", true),
+			tables.NewColumn(keyCreationDate, "Creation", true),
+			tables.NewColumn(keyName, "Name", true),
 		}
-		err = w.Flush()
-		utils.CheckErr(err)
+
+		rows := []tables.Row{}
+		for index, object := range output.Buckets {
+			rows = append(rows, tables.Row{
+				keyIndex:        fmt.Sprintf("%d", index+1),
+				keyCreationDate: object.CreationDate.Format("2006-01-02"),
+				keyName:         *object.Name,
+			})
+		}
+
+		table := tables.New(columns).WithRows(rows)
+
+		// Render table
+		fmt.Println(table.Render())
 	},
 }

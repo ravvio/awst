@@ -6,11 +6,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{
-	Use: "awst",
-	Short: "A utility to manage AWS resources",
-}
-
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -18,8 +13,17 @@ func Execute() {
 	}
 }
 
+var (
+	region string
+	profile string
+)
+
 func init() {
 	rootCmd.AddCommand(s3command)
+
+	rootCmd.PersistentFlags().StringVar(&region, "region", "", "Specify AWS region")
+	rootCmd.PersistentFlags().StringVar(&profile, "profile", "", "Specify AWS profile")
+
 	s3command.AddCommand(s3listCommand)
 
 	rootCmd.AddCommand(logsCommand)
@@ -27,6 +31,12 @@ func init() {
 	logsCommand.AddCommand(logsGetCommand)
 	logsCommand.AddCommand(logsSearchCommand)
 }
+
+var rootCmd = &cobra.Command{
+	Use: "awst",
+	Short: "A utility to manage AWS resources",
+}
+
 
 var s3command = &cobra.Command{
 	Use: "s3",

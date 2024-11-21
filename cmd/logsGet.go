@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/ravvio/awst/ui/style"
 	"github.com/ravvio/awst/ui/tlog"
@@ -28,7 +27,7 @@ var logsGetCommand = &cobra.Command{
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		// Load config
-		cfg, err := config.LoadDefaultConfig(context.TODO())
+		cfg, err := loadAwsConfig(context.TODO())
 		utils.CheckErr(err)
 
 		logGroupName := args[0]

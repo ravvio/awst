@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/ravvio/awst/ui/style"
@@ -31,21 +30,12 @@ func init() {
 	logsListCommad.MarkFlagsMutuallyExclusive("all", "limit")
 }
 
-var (
-	keyIndex = "index"
-	keyCreationDate = "creation"
-	keyName = "name"
-	keyArn = "arn"
-	keyRetention = "retention"
-	keyStreams = "streams"
-)
-
 var logsListCommad = &cobra.Command{
 	Use:   "list",
 	Short: "List cloudwatch log groups",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Load config
-		cfg, err := config.LoadDefaultConfig(context.TODO())
+		cfg, err := loadAwsConfig(context.TODO())
 		utils.CheckErr(err)
 
 		// Setup params using flags
@@ -58,16 +48,16 @@ var logsListCommad = &cobra.Command{
 		}
 		params.Limit = &limit
 
-		pattern, err := cmd.Flags().GetString("pattern");
+		pattern, err := cmd.Flags().GetString("pattern")
 		utils.CheckErr(err)
 		if pattern != "" {
-			params.LogGroupNamePattern = &pattern;
+			params.LogGroupNamePattern = &pattern
 		}
 
-		prefix, err := cmd.Flags().GetString("prefix");
+		prefix, err := cmd.Flags().GetString("prefix")
 		utils.CheckErr(err)
 		if prefix != "" {
-			params.LogGroupNamePrefix = &prefix;
+			params.LogGroupNamePrefix = &prefix
 		}
 
 		// Request
@@ -102,7 +92,7 @@ var logsListCommad = &cobra.Command{
 				params := &cloudwatchlogs.DescribeLogStreamsInput{
 					LogGroupName: group.LogGroupName,
 				}
-				logStreams, err := client.DescribeLogStreams( context.TODO(), params)
+				logStreams, err := client.DescribeLogStreams(context.TODO(), params)
 				utils.CheckErr(err)
 
 				var names = []string{}
@@ -119,6 +109,15 @@ var logsListCommad = &cobra.Command{
 		}
 
 		// Setup table
+		var (
+			keyIndex        = "index"
+			keyCreationDate = "creation"
+			keyName         = "name"
+			keyArn          = "arn"
+			keyRetention    = "retention"
+			keyStreams      = "streams"
+		)
+
 		columns := []tables.Column{
 			tables.NewColumn(keyIndex, "#", true),
 			tables.NewColumn(keyCreationDate, "Creation", true),
@@ -131,12 +130,12 @@ var logsListCommad = &cobra.Command{
 		rows := []tables.Row{}
 		for index, group := range logGroups {
 			rows = append(rows, tables.Row{
-				keyIndex: fmt.Sprintf("%d", index+1),
+				keyIndex:        fmt.Sprintf("%d", index+1),
 				keyCreationDate: time.UnixMilli(*group.CreationTime).Format("2006-01-02"),
-				keyName: *group.LogGroupName,
-				keyArn: *group.LogGroupArn,
-				keyRetention: fmt.Sprintf("%d days", group.RetentionInDays),
-				keyStreams: strings.Join(streams[*group.LogGroupName], ", "),
+				keyName:         *group.LogGroupName,
+				keyArn:          *group.LogGroupArn,
+				keyRetention:    fmt.Sprintf("%d days", group.RetentionInDays),
+				keyStreams:      strings.Join(streams[*group.LogGroupName], ", "),
 			})
 		}
 
