@@ -7,6 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 )
 
+const DEFAULT_LOG_LIMIT = 10_000
+
 type LogsFetchData = FetchData[types.FilteredLogEvent]
 
 type LogsFetcherClient struct {
@@ -21,7 +23,7 @@ func (l *LogsFetcherClient) fetch(ctx context.Context) (LogsFetchData, error) {
 	}
 
 	data := LogsFetchData{
-		Data: res.Events,
+		Data:      res.Events,
 		NextToken: res.NextToken,
 	}
 	return data, nil
@@ -45,5 +47,5 @@ func NewLogsFetcher(
 	ctx context.Context,
 	client *LogsFetcherClient,
 ) LogsFetcher {
-	return NewFetcher(ctx, client)
+	return NewFetcher(ctx, client, DEFAULT_LOG_LIMIT)
 }

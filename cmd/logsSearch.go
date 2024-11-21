@@ -132,11 +132,10 @@ var logsSearchCommand = &cobra.Command{
 				&fetch.LogsFetcherClient{
 					Client: client,
 					Params: cloudwatchlogs.FilterLogEventsInput{
-						LogGroupName: group.LogGroupName,
-						Limit: &limitEvents,
-						StartTime: &sinceUnix,
-						EndTime: &untilUnix,
-					FilterPattern: &filter,
+						LogGroupName:  group.LogGroupName,
+						StartTime:     &sinceUnix,
+						EndTime:       &untilUnix,
+						FilterPattern: &filter,
 					},
 				},
 			)

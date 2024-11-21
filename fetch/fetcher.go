@@ -30,8 +30,9 @@ type Fetcher[C FetcherClient[T], T any] struct {
 func NewFetcher[C FetcherClient[T], T any](
 	ctx context.Context,
 	c C,
+	defaultRequestLimit int32,
 ) Fetcher[C, T] {
-	return Fetcher[C, T]{
+	f := Fetcher[C, T]{
 		ctx: ctx,
 		client: c,
 
@@ -40,6 +41,11 @@ func NewFetcher[C FetcherClient[T], T any](
 		first_page: true,
 		next_token: nil,
 	}
+
+	if f.client.requestLimit() == nil {
+		f.client.setRequestLimit(&defaultRequestLimit)
+	}
+	return f
 }
 
 func (f Fetcher[C, T]) WithLimit(limit int32) Fetcher[C, T] {
