@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	"github.com/ravvio/awst/fetch"
 	"github.com/ravvio/awst/ui/style"
 	"github.com/ravvio/awst/ui/tlog"
 	"github.com/ravvio/awst/utils"
@@ -21,8 +22,8 @@ func init() {
 	logsSearchCommand.Flags().Bool("all-groups", false, "do not limit of log groups to use")
 	logsSearchCommand.Flags().Int32("limit-groups", 50, "limit number of log groups to use")
 
-	logsSearchCommand.Flags().BoolP("all", "a", false, "do not limit of log events to fetch")
-	logsSearchCommand.Flags().Int32P("limit", "l", 10000, "limit number of log events to fetch")
+	logsSearchCommand.Flags().BoolP("all", "a", false, "do not limit of log events to fetch from each group")
+	logsSearchCommand.Flags().Int32P("limit", "l", 10000, "limit number of log events to fetch from each group")
 
 	logsSearchCommand.Flags().StringP("filter", "f", "", "pattern filter on log events")
 	logsSearchCommand.Flags().String("from", "1d", "moment in time to start the search, can be absolute or relative")
@@ -111,25 +112,31 @@ var logsSearchCommand = &cobra.Command{
 
 		logs := []tlog.Log{}
 		for _, group := range logGroups {
-			params := &cloudwatchlogs.FilterLogEventsInput{
-				FilterPattern: &filter,
-				LogGroupName:  group.LogGroupName,
-				Limit:         &limitEvents,
-				StartTime:     &fromUnix,
+			fetcher := fetch.NewLogsFetcher(
+				context.TODO(),
+				client,
+				cloudwatchlogs.FilterLogEventsInput{
+					FilterPattern: &filter,
+					LogGroupName:  group.LogGroupName,
+					Limit:         &limitEvents,
+					StartTime:     &fromUnix,
+				},
+			)
+			if !allEvents {
+				fetcher = fetcher.WithLimit(limitEvents)
 			}
+
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				res, err := fetchGroupLogs(
-					context.TODO(),
-					client,
-					params,
-					*group.LogGroupName,
-					allEvents,
-					limitEvents,
-				)
+				res, err := fetcher.All()
 				utils.CheckErr(err)
-				logs = append(logs, res...)
+				for _, log := range res {
+					logs = append(
+						logs,
+						utils.LogFromCloudwatchEvent(group.LogGroupName, &log),
+					)
+				}
 			}()
 		}
 
@@ -137,7 +144,7 @@ var logsSearchCommand = &cobra.Command{
 		wg.Wait()
 
 		sort.Slice(logs, func(i, j int) bool {
-			return logs[i].Timestamp.Compare(logs[j].Timestamp) > 0
+			return *logs[j].Timestamp > *logs[i].Timestamp
 		})
 
 		r := tlog.DefaultRenderer()
@@ -203,9 +210,9 @@ func handleStream(
 			case *types.StartLiveTailResponseStreamMemberSessionUpdate:
 				for _, logEvent := range e.Value.SessionResults {
 					log := tlog.Log{
-						GroupName: *logEvent.LogGroupIdentifier,
-						Timestamp: time.UnixMilli(*logEvent.Timestamp),
-						Message:   *logEvent.Message,
+						GroupName: logEvent.LogGroupIdentifier,
+						Timestamp: logEvent.Timestamp,
+						Message:   logEvent.Message,
 					}
 					logStream <- log
 				}
@@ -214,37 +221,4 @@ func handleStream(
 			}
 		}
 	}
-}
-
-func fetchGroupLogs(
-	ctx context.Context,
-	client *cloudwatchlogs.Client,
-	params *cloudwatchlogs.FilterLogEventsInput,
-	groupName string,
-	all bool,
-	limit int32,
-) ([]tlog.Log, error) {
-	logs := []tlog.Log{}
-	for {
-		eventsOutput, err := client.FilterLogEvents(ctx, params)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, event := range eventsOutput.Events {
-			logs = append(logs, tlog.Log{
-				GroupName: groupName,
-				Timestamp: time.UnixMilli(*event.Timestamp),
-				Message:   *event.Message,
-			})
-		}
-
-		if !all ||
-		len(logs) >= int(limit) ||
-		eventsOutput.NextToken == nil {
-			break
-		}
-		params.NextToken = eventsOutput.NextToken
-	}
-	return logs, nil
 }

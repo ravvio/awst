@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/ravvio/awst/ui/style"
@@ -57,9 +56,9 @@ var logsGetCommand = &cobra.Command{
 		r := tlog.DefaultRenderer()
 		for _, event := range logEventsOutput.Events {
 			r.Render(&tlog.Log{
-				GroupName: logGroupName,
-				Timestamp: time.UnixMilli(*event.Timestamp),
-				Message: *event.Message,
+				GroupName: &logGroupName,
+				Timestamp: event.Timestamp,
+				Message: event.Message,
 			})
 		}
 
