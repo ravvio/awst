@@ -31,6 +31,8 @@ func init() {
 
 	logsSearchCommand.Flags().BoolP("tail", "t", false, "start live tail")
 
+	logsSearchCommand.Flags().Int("max-par", 5, "maximum parallelization for fetching")
+
 	logsSearchCommand.MarkFlagsOneRequired("pattern", "prefix")
 
 	logsSearchCommand.MarkFlagsMutuallyExclusive("pattern", "prefix")
@@ -123,7 +125,11 @@ var logsSearchCommand = &cobra.Command{
 			}
 		}
 
-		var wg sync.WaitGroup
+		maxPar, err := cmd.Flags().GetInt("max-par")
+		utils.CheckErr(err)
+		semaphore := make(chan struct{}, maxPar)
+
+		var wg sync.WaitGroup = sync.WaitGroup{}
 
 		logs := []tlog.Log{}
 		for _, group := range logGroups {
@@ -143,6 +149,8 @@ var logsSearchCommand = &cobra.Command{
 				fetcher = fetcher.WithLimit(limitEvents)
 			}
 
+			// Acquire semaphore
+			semaphore <- struct{}{}
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -154,6 +162,8 @@ var logsSearchCommand = &cobra.Command{
 						utils.LogFromCloudwatchEvent(group.LogGroupName, &log),
 					)
 				}
+				// Release semaphore
+				<-semaphore
 			}()
 		}
 

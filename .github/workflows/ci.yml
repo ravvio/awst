@@ -1,0 +1,75 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  unit-tests:
+    strategy:
+      fail-fast: false
+    name: ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22.x
+      - name: Test code
+        run: |
+          go test ./...
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22.x
+      - name: Build linux binary
+        run: |
+          go build
+
+  check-codebase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22.x
+      - name: Check go.mod file
+        # ensure our go.mod file is clean
+        run: |
+          go mod tidy && git diff --exit-code || (echo "go.mod file is not clean. Run 'go mod tidy' locally and commit the changes" && exit 1)
+      - name: Check Filenames
+        run: scripts/check_filenames.sh
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22.x
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6.1.0
+        with:
+          version: v1.60
+      - name: errors
+        run: golangci-lint run
+        if: ${{ failure() }}
+

@@ -11,10 +11,10 @@ type FetchData[T any] struct {
 }
 
 type FetcherClient[T any] interface {
-	fetch(context.Context) (FetchData[T], error)
-	requestLimit() *int32
-	setRequestLimit(*int32)
-	setNextToken(*string)
+	Fetch(context.Context) (FetchData[T], error)
+	RequestLimit() *int32
+	SetRequestLimit(*int32)
+	SetNextToken(*string)
 }
 
 type Fetcher[C FetcherClient[T], T any] struct {
@@ -42,8 +42,8 @@ func NewFetcher[C FetcherClient[T], T any](
 		next_token: nil,
 	}
 
-	if f.client.requestLimit() == nil {
-		f.client.setRequestLimit(&defaultRequestLimit)
+	if f.client.RequestLimit() == nil {
+		f.client.SetRequestLimit(&defaultRequestLimit)
 	}
 	return f
 }
@@ -62,17 +62,17 @@ func (f *Fetcher[C, T]) NextPage() ([]T, error) {
 	if !f.HasNextPage() {
 		return nil, fmt.Errorf("no next page")
 	}
-	f.client.setNextToken(f.next_token)
+	f.client.SetNextToken(f.next_token)
 
 	if f.limit > 0 {
 		newLimit := min(
 			f.limit-int32(f.fetched),
-			*f.client.requestLimit(),
+			*f.client.RequestLimit(),
 		)
-		f.client.setRequestLimit(&newLimit)
+		f.client.SetRequestLimit(&newLimit)
 	}
 
-	res, err := f.client.fetch(f.ctx)
+	res, err := f.client.Fetch(f.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -85,12 +85,15 @@ func (f *Fetcher[C, T]) NextPage() ([]T, error) {
 }
 
 func (f *Fetcher[C, T]) All() ([]T, error) {
-	res := []T{}
+	res, err := f.NextPage()
+	if (err != nil) {
+		return nil, err
+	}
 
 	for {
 		r, err := f.NextPage()
 		if err != nil {
-			return nil, err
+			break
 		}
 
 		res = append(res, r...)
