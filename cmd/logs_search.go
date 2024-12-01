@@ -210,10 +210,13 @@ var logsSearchCommand = &cobra.Command{
 			s := tailOutput.GetStream()
 			handleStream(logStream, s)
 
-			if i+10 >= len(logGroups) {
+			if i == len(logGroups) {
 				break
+			} else if i+10 >= len(logGroups) {
+				i = len(logGroups) - i
+			} else {
+				i += 10
 			}
-			i += 10
 		}
 
 		for {
