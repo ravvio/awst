@@ -72,20 +72,21 @@ var logsSearchCommand = &cobra.Command{
 		utils.CheckErr(err)
 
 		// Request describe
-		logGroups := []types.LogGroup{}
-		for {
-			logGroupsOutput, err := client.DescribeLogGroups(context.TODO(), describeParams)
-			utils.CheckErr(err)
+		groupsFetcher := fetch.NewGroupsFetcher(
+			context.TODO(),
+			&fetch.GroupsFetcherClient{
+				Client: client,
+				Params: *describeParams,
+			},
+		).WithLimit(limitGroups)
 
-			logGroups = append(logGroups, logGroupsOutput.LogGroups...)
-
-			if !allGroups ||
-				len(logGroups) >= int(limitGroups) ||
-				logGroupsOutput.NextToken == nil {
-				break
-			}
-			describeParams.NextToken = logGroupsOutput.NextToken
+		var logGroups = []types.LogGroup{};
+		if allGroups {
+			logGroups, err = groupsFetcher.All()
+		} else {
+			logGroups, err = groupsFetcher.NextPage()
 		}
+		utils.CheckErr(err)
 
 		style.PrintInfo("%d groups found", len(logGroups))
 
