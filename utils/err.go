@@ -10,7 +10,7 @@ import (
 func CheckErr(err error) {
 	if err != nil {
 		log.Printf("Error: %v", err)
-		style.PrintError("Error: " + err.Error())
+		style.PrintError("Error: %s", err.Error())
 		os.Exit(1)
 	}
 }

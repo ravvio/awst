@@ -14,7 +14,6 @@ jobs:
   unit-tests:
     strategy:
       fail-fast: false
-    name: ci
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -22,7 +21,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
+          go-version: 1.23.x
       - name: Test code
         run: |
           go test ./...
@@ -35,7 +34,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
+          go-version: 1.23.x
       - name: Build linux binary
         run: |
           go build
@@ -48,7 +47,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
+          go-version: 1.23.x
       - name: Check go.mod file
         # ensure our go.mod file is clean
         run: |
@@ -64,7 +63,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
+          go-version: 1.23.x
       - name: Lint
         uses: golangci/golangci-lint-action@v6.1.0
         with:
