@@ -1,4 +1,4 @@
-#!/usr/env bash
+#!/usr/bin/env bash
 
 # Find all Go files in the project directory and its subdirectories
 for file in $(find . -name "*.go"); do
