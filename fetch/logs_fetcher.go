@@ -16,8 +16,8 @@ type LogsFetcherClient struct {
 	Params cloudwatchlogs.FilterLogEventsInput
 }
 
-func (l *LogsFetcherClient) Fetch(ctx context.Context) (LogsFetchData, error) {
-	res, err := l.Client.FilterLogEvents(ctx, &l.Params)
+func (c *LogsFetcherClient) Fetch(ctx context.Context) (LogsFetchData, error) {
+	res, err := c.Client.FilterLogEvents(ctx, &c.Params)
 	if err != nil {
 		return LogsFetchData{}, err
 	}
@@ -29,16 +29,16 @@ func (l *LogsFetcherClient) Fetch(ctx context.Context) (LogsFetchData, error) {
 	return data, nil
 }
 
-func (l *LogsFetcherClient) RequestLimit() *int32 {
-	return l.Params.Limit
+func (c *LogsFetcherClient) RequestLimit() *int32 {
+	return c.Params.Limit
 }
 
-func (l *LogsFetcherClient) SetRequestLimit(limit *int32) {
-	l.Params.Limit = limit
+func (c *LogsFetcherClient) SetRequestLimit(limit *int32) {
+	c.Params.Limit = limit
 }
 
-func (l *LogsFetcherClient) SetNextToken(token *string) {
-	l.Params.NextToken = token
+func (c *LogsFetcherClient) SetNextToken(token *string) {
+	c.Params.NextToken = token
 }
 
 type LogsFetcher = Fetcher[*LogsFetcherClient, types.FilteredLogEvent]
