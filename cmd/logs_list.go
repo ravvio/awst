@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	"github.com/ravvio/awst/fetch"
 	"github.com/ravvio/awst/ui/style"
 	"github.com/ravvio/awst/ui/tables"
 	"github.com/ravvio/awst/utils"
@@ -16,7 +16,6 @@ import (
 
 func init() {
 	logsListCommad.Flags().BoolP("all", "a", false, "fetch all log groups")
-
 	logsListCommad.Flags().Int32P("limit", "l", 50, "limit number of groups to fetch")
 
 	logsListCommad.Flags().StringP("pattern", "e", "", "pattern filter on log group name")
@@ -43,10 +42,6 @@ var logsListCommad = &cobra.Command{
 
 		limit, err := cmd.Flags().GetInt32("limit")
 		utils.CheckErr(err)
-		if limit < 0 || limit > 50 {
-			utils.CheckErr(fmt.Errorf("Limit must have a value between 0 and 50, was %d", limit))
-		}
-		params.Limit = &limit
 
 		pattern, err := cmd.Flags().GetString("pattern")
 		utils.CheckErr(err)
@@ -61,22 +56,23 @@ var logsListCommad = &cobra.Command{
 		}
 
 		// Request
-		allPages, err := cmd.Flags().GetBool("all")
+		all, err := cmd.Flags().GetBool("all")
 		utils.CheckErr(err)
 
-		logGroups := []types.LogGroup{}
 		client := cloudwatchlogs.NewFromConfig(cfg)
-		for {
-			output, err := client.DescribeLogGroups(context.TODO(), params)
-			utils.CheckErr(err)
 
-			logGroups = append(logGroups, output.LogGroups...)
-
-			if !allPages || output.NextToken == nil {
-				break
-			}
-			params.NextToken = output.NextToken
+		groupsFetcher := fetch.NewGroupsFetcher(
+			context.TODO(),
+			&fetch.GroupsFetcherClient{
+				Client: client,
+				Params: *params,
+			},
+		)
+		if !all {
+			groupsFetcher = groupsFetcher.WithLimit(limit)
 		}
+		logGroups, err := groupsFetcher.All()
+		utils.CheckErr(err)
 
 		showStreams, err := cmd.Flags().GetBool("streams")
 		utils.CheckErr(err)
@@ -122,19 +118,26 @@ var logsListCommad = &cobra.Command{
 			tables.NewColumn(keyIndex, "#", true),
 			tables.NewColumn(keyCreationDate, "Creation", true),
 			tables.NewColumn(keyName, "Name", true),
-			tables.NewColumn(keyArn, "ARN", showArn),
+			tables.NewColumn(keyArn, "Arn", showArn),
 			tables.NewColumn(keyRetention, "Retention", showRetention),
 			tables.NewColumn(keyStreams, "Streams", showStreams),
 		}
 
+
 		rows := []tables.Row{}
 		for index, group := range logGroups {
+			var retention string
+			if group.RetentionInDays != nil {
+				retention = fmt.Sprintf("%d", *group.RetentionInDays)
+			} else {
+				retention = "-"
+			}
 			rows = append(rows, tables.Row{
 				keyIndex:        fmt.Sprintf("%d", index+1),
 				keyCreationDate: time.UnixMilli(*group.CreationTime).Format("2006-01-02"),
 				keyName:         *group.LogGroupName,
 				keyArn:          *group.LogGroupArn,
-				keyRetention:    fmt.Sprintf("%d days", group.RetentionInDays),
+				keyRetention:    retention,
 				keyStreams:      strings.Join(streams[*group.LogGroupName], ", "),
 			})
 		}

@@ -78,14 +78,11 @@ var logsSearchCommand = &cobra.Command{
 				Client: client,
 				Params: *describeParams,
 			},
-		).WithLimit(limitGroups)
-
-		var logGroups = []types.LogGroup{};
-		if allGroups {
-			logGroups, err = groupsFetcher.All()
-		} else {
-			logGroups, err = groupsFetcher.NextPage()
+		)
+		if !allGroups {
+			groupsFetcher = groupsFetcher.WithLimit(limitGroups)
 		}
+		logGroups, err := groupsFetcher.All()
 		utils.CheckErr(err)
 
 		style.PrintInfo("%d groups found", len(logGroups))
