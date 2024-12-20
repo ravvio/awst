@@ -115,11 +115,11 @@ var logsListCommad = &cobra.Command{
 		)
 
 		columns := []tables.Column{
-			tables.NewColumn(keyIndex, "#", true),
+			tables.NewColumn(keyIndex, "#", true).WithAlignment(tables.Right),
 			tables.NewColumn(keyCreationDate, "Creation", true),
 			tables.NewColumn(keyName, "Name", true),
 			tables.NewColumn(keyArn, "Arn", showArn),
-			tables.NewColumn(keyRetention, "Retention", showRetention),
+			tables.NewColumn(keyRetention, "Retention", showRetention).WithAlignment(tables.Right),
 			tables.NewColumn(keyStreams, "Streams", showStreams),
 		}
 
@@ -128,7 +128,7 @@ var logsListCommad = &cobra.Command{
 		for index, group := range logGroups {
 			var retention string
 			if group.RetentionInDays != nil {
-				retention = fmt.Sprintf("%d", *group.RetentionInDays)
+				retention = fmt.Sprintf("%d days", *group.RetentionInDays)
 			} else {
 				retention = "-"
 			}

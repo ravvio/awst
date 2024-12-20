@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 	"sync"
 	"time"
@@ -84,6 +85,11 @@ var logsSearchCommand = &cobra.Command{
 		}
 		logGroups, err := groupsFetcher.All()
 		utils.CheckErr(err)
+
+		if len(logGroups) == 0 {
+			style.PrintInfo("No groups found")
+			return
+		}
 
 		style.PrintInfo("%d groups found", len(logGroups))
 
