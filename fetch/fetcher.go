@@ -6,7 +6,7 @@ import (
 )
 
 type FetchData[T any] struct {
-	Data []T
+	Data      []T
 	NextToken *string
 }
 
@@ -18,11 +18,11 @@ type FetcherClient[T any] interface {
 }
 
 type Fetcher[C FetcherClient[T], T any] struct {
-	ctx context.Context
+	ctx    context.Context
 	client C
 
-	limit int32
-	fetched int32
+	limit      int32
+	fetched    int32
 	first_page bool
 	next_token *string
 }
@@ -33,11 +33,11 @@ func NewFetcher[C FetcherClient[T], T any](
 	defaultRequestLimit int32,
 ) Fetcher[C, T] {
 	f := Fetcher[C, T]{
-		ctx: ctx,
+		ctx:    ctx,
 		client: c,
 
-		limit: -1,
-		fetched: 0,
+		limit:      -1,
+		fetched:    0,
 		first_page: true,
 		next_token: nil,
 	}
@@ -55,7 +55,7 @@ func (f Fetcher[C, T]) WithLimit(limit int32) Fetcher[C, T] {
 
 func (f *Fetcher[C, T]) HasNextPage() bool {
 	return f.first_page ||
-	(f.next_token != nil && (f.limit < 0 || f.fetched < f.limit))
+		(f.next_token != nil && (f.limit < 0 || f.fetched < f.limit))
 }
 
 func (f *Fetcher[C, T]) NextPage() ([]T, error) {
@@ -77,7 +77,6 @@ func (f *Fetcher[C, T]) NextPage() ([]T, error) {
 		return nil, err
 	}
 
-
 	f.first_page = false
 	f.fetched += int32(len(res.Data))
 	f.next_token = res.NextToken
@@ -86,7 +85,7 @@ func (f *Fetcher[C, T]) NextPage() ([]T, error) {
 
 func (f *Fetcher[C, T]) All() ([]T, error) {
 	res, err := f.NextPage()
-	if (err != nil) {
+	if err != nil {
 		return nil, err
 	}
 
@@ -98,7 +97,9 @@ func (f *Fetcher[C, T]) All() ([]T, error) {
 
 		res = append(res, r...)
 
-		if !f.HasNextPage() { break }
+		if !f.HasNextPage() {
+			break
+		}
 	}
 
 	return res, nil

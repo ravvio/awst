@@ -23,7 +23,7 @@ func (t *TestFetcherClient) Fetch(ctx context.Context) (TestFetchData, error) {
 	}
 	next := "next"
 	return TestFetchData{
-		Data: data,
+		Data:      data,
 		NextToken: &next,
 	}, nil
 }
@@ -73,7 +73,7 @@ func TestPagination(t *testing.T) {
 
 	r, e = f.NextPage()
 	assert.NoError(t, e)
-	assert.Equal(t, LIMIT - RLIMIT, len(r))
+	assert.Equal(t, LIMIT-RLIMIT, len(r))
 
 	assert.Equal(t, false, f.HasNextPage())
 }

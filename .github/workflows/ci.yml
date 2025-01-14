@@ -54,6 +54,8 @@ jobs:
           go mod tidy && git diff --exit-code || (echo "go.mod file is not clean. Run 'go mod tidy' locally and commit the changes" && exit 1)
       - name: Check Filenames
         run: scripts/check_filenames.sh
+      - name: Check Formatting
+        run: scripts/check_formatting.sh
 
   lint:
     runs-on: ubuntu-latest

@@ -25,9 +25,9 @@ func init() {
 }
 
 var logsGetCommand = &cobra.Command{
-	Use: "get",
+	Use:   "get",
 	Short: "Get cloudwatch logs of given log group",
-	Args: cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		// Load config
 		cfg, err := loadAwsConfig(context.TODO())
@@ -79,12 +79,12 @@ var logsGetCommand = &cobra.Command{
 			context.TODO(),
 			&fetch.LogsFetcherClient{
 				Client: client,
-					Params: cloudwatchlogs.FilterLogEventsInput{
-						LogGroupName:  &logGroupName,
-						StartTime:     &sinceUnix,
-						EndTime:       &untilUnix,
-						FilterPattern: &filter,
-					},
+				Params: cloudwatchlogs.FilterLogEventsInput{
+					LogGroupName:  &logGroupName,
+					StartTime:     &sinceUnix,
+					EndTime:       &untilUnix,
+					FilterPattern: &filter,
+				},
 			},
 		)
 		if !allEvents {
@@ -104,7 +104,7 @@ var logsGetCommand = &cobra.Command{
 			r.Render(&tlog.Log{
 				GroupName: &logGroupName,
 				Timestamp: event.Timestamp,
-				Message: event.Message,
+				Message:   event.Message,
 			})
 		}
 

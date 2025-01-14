@@ -1,9 +1,9 @@
 package fetch
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
-	"context"
 )
 
 const DEFAULT_GROUPS_LIMIT = 20
@@ -22,7 +22,7 @@ func (c *GroupsFetcherClient) Fetch(ctx context.Context) (GroupsFetchData, error
 	}
 
 	data := GroupsFetchData{
-		Data: res.LogGroups,
+		Data:      res.LogGroups,
 		NextToken: res.NextToken,
 	}
 	return data, nil
@@ -48,4 +48,3 @@ func NewGroupsFetcher(
 ) GroupsFetcher {
 	return NewFetcher(ctx, client, DEFAULT_GROUPS_LIMIT)
 }
-

@@ -10,9 +10,9 @@ import (
 var (
 	second = "s"
 	minute = "m"
-	hour = "h"
-	day = "d"
-	week = "w"
+	hour   = "h"
+	day    = "d"
+	week   = "w"
 )
 
 // Parse a date or datetime in ISO 8601 formats
@@ -38,13 +38,13 @@ func ParseDatetime(value string) (time.Time, error) {
 }
 
 func ParseDuration(duration string) (int64, error) {
-	reg, err := regexp.CompilePOSIX( "[0-9]+[smhdw]")
+	reg, err := regexp.CompilePOSIX("[0-9]+[smhdw]")
 	if err != nil {
 		return 0, err
 	}
 
-	var l = 0;
-	var t int64 = 0;
+	var l = 0
+	var t int64 = 0
 	for _, m := range reg.FindAll([]byte(duration), -1) {
 		value, err := strconv.ParseInt(string(m[0:len(m)-1]), 10, 64)
 		if err != nil {
@@ -65,7 +65,7 @@ func ParseDuration(duration string) (int64, error) {
 			t += value * 7 * 24 * time.Hour.Milliseconds()
 		}
 
-		l += len(m);
+		l += len(m)
 	}
 
 	if l != len(duration) {
