@@ -14,7 +14,7 @@ func Execute() {
 }
 
 var (
-	region string
+	region  string
 	profile string
 )
 
@@ -33,17 +33,16 @@ func init() {
 }
 
 var rootCmd = &cobra.Command{
-	Use: "awst",
+	Use:   "awst",
 	Short: "A utility to manage AWS resources",
 }
 
-
 var s3command = &cobra.Command{
-	Use: "s3",
+	Use:   "s3",
 	Short: "",
 }
 
 var logsCommand = &cobra.Command{
-	Use: "logs",
+	Use:   "logs",
 	Short: "",
 }

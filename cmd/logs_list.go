@@ -123,7 +123,6 @@ var logsListCommad = &cobra.Command{
 			tables.NewColumn(keyStreams, "Streams", showStreams),
 		}
 
-
 		rows := []tables.Row{}
 		for index, group := range logGroups {
 			var retention string
