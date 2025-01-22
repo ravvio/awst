@@ -55,7 +55,7 @@ var s3listCommand = &cobra.Command{
 		)
 
 		columns := []tables.Column{
-			tables.NewColumn(keyIndex, "#", true),
+			tables.NewColumn(keyIndex, "#", true).WithAlignment(tables.Right),
 			tables.NewColumn(keyCreationDate, "Creation", true),
 			tables.NewColumn(keyName, "Name", true),
 		}
