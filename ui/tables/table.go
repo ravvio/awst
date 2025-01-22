@@ -84,7 +84,7 @@ func (t Table) Render() string {
 		BorderLeft(false).BorderRight(false).BorderTop(false).BorderBottom(false).
 		BorderColumn(false).BorderHeader(false).
 		StyleFunc(func(row, col int) lipgloss.Style {
-			sty := lipgloss.NewStyle()
+			var sty lipgloss.Style
 
 			switch {
 			case row == table.HeaderRow:
