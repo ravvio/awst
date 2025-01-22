@@ -56,7 +56,6 @@ func (t Table) WithRows(rows []Row) Table {
 
 func (t Table) Render() string {
 	aligments := []Alignment{}
-
 	headers := []string{}
 	for _, col := range t.columns {
 		if !col.Active {
