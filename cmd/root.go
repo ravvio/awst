@@ -30,6 +30,9 @@ func init() {
 	logsCommand.AddCommand(logsListCommad)
 	logsCommand.AddCommand(logsGetCommand)
 	logsCommand.AddCommand(logsSearchCommand)
+
+	rootCmd.AddCommand(ddbCommand)
+	ddbCommand.AddCommand(ddbListCommand)
 }
 
 var rootCmd = &cobra.Command{
@@ -44,5 +47,10 @@ var s3command = &cobra.Command{
 
 var logsCommand = &cobra.Command{
 	Use:   "logs",
+	Short: "",
+}
+
+var ddbCommand = &cobra.Command{
+	Use:   "ddb",
 	Short: "",
 }
