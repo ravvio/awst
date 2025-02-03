@@ -61,11 +61,11 @@ var s3listCommand = &cobra.Command{
 		}
 
 		rows := []tables.Row{}
-		for index, object := range output.Buckets {
+		for index, bucket := range output.Buckets {
 			rows = append(rows, tables.Row{
 				keyIndex:        fmt.Sprintf("%d", index+1),
-				keyCreationDate: object.CreationDate.Format("2006-01-02"),
-				keyName:         *object.Name,
+				keyCreationDate: bucket.CreationDate.Format("2006-01-02"),
+				keyName:         *bucket.Name,
 			})
 		}
 

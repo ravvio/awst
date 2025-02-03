@@ -28,6 +28,8 @@ func init() {
 
 	rootCmd.AddCommand(logsCommand)
 	rootCmd.AddCommand(loggCommand)
+
+	rootCmd.AddCommand(ddbCommand)
 }
 
 var rootCmd = &cobra.Command{
