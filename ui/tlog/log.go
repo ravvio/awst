@@ -2,6 +2,7 @@ package tlog
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
@@ -35,11 +36,12 @@ func DefaultRenderer() LogRenderer {
 	}
 }
 
-func (l *LogRenderer) Render(log *Log) {
-	fmt.Printf(
+func (l *LogRenderer) Render(log *Log) error {
+	_, err := fmt.Printf(
 		"%s%s%s\n",
 		l.NameStyle.Render(*log.GroupName),
 		l.TimestampStyle.Render(time.UnixMilli(*log.Timestamp).Format(l.DateFormat)),
-		l.MessageStyle.Render(*log.Message),
+		l.MessageStyle.Render(strings.Trim(*log.Message, " \n")),
 	)
+	return err
 }

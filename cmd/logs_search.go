@@ -27,7 +27,7 @@ func init() {
 
 	logsSearchCommand.Flags().StringP("filter", "f", "", "pattern filter on log events")
 	logsSearchCommand.Flags().String("since", "1d", "moment in time to start the search, can be absolute or relative")
-	logsSearchCommand.Flags().String("until", "", "moment in time to end the search, can be absolute or relative")
+	logsSearchCommand.Flags().String("until", "0s", "moment in time to end the search, can be absolute or relative")
 
 	logsSearchCommand.Flags().BoolP("tail", "t", false, "start live tail")
 
@@ -179,14 +179,15 @@ var logsSearchCommand = &cobra.Command{
 
 		r := tlog.DefaultRenderer()
 		for _, log := range logs {
-			r.Render(&log)
+			err = r.Render(&log)
+			utils.CheckErr(err)
 		}
 
 		if !tail {
 			return
 		}
 
-		logStream := make(chan tlog.Log)
+		logChan := make(chan tlog.Log)
 
 		// Create tail streams
 		i := 0
@@ -199,7 +200,7 @@ var logsSearchCommand = &cobra.Command{
 			}
 
 			tailParams := &cloudwatchlogs.StartLiveTailInput{
-				LogEventFilterPattern: &filter,
+				// LogEventFilterPattern: &filter,
 				LogGroupIdentifiers:   identifiers,
 			}
 
@@ -210,19 +211,16 @@ var logsSearchCommand = &cobra.Command{
 			utils.CheckErr(err)
 
 			s := tailOutput.GetStream()
-			handleStream(logStream, s)
+			go handleStream(logChan, s)
 
-			if i == len(logGroups) {
+			i = n
+			if i >= len(logGroups) {
 				break
-			} else if i+10 >= len(logGroups) {
-				i = len(logGroups) - i
-			} else {
-				i += 10
 			}
 		}
 
 		for {
-			log := <-logStream
+			log := <-logChan
 			r.Render(&log)
 		}
 
@@ -230,12 +228,13 @@ var logsSearchCommand = &cobra.Command{
 }
 
 func handleStream(
-	logStream chan tlog.Log,
+	logChan chan tlog.Log,
 	eventStream *cloudwatchlogs.StartLiveTailEventStream,
 ) {
+	eventsChan := eventStream.Events()
 	for {
-		if logStream != nil {
-			event := <-eventStream.Events()
+		if logChan != nil {
+			event := <-eventsChan
 
 			switch e := event.(type) {
 			case *types.StartLiveTailResponseStreamMemberSessionStart:
@@ -247,7 +246,7 @@ func handleStream(
 						Timestamp: logEvent.Timestamp,
 						Message:   logEvent.Message,
 					}
-					logStream <- log
+					logChan <- log
 				}
 			default:
 				utils.CheckErr(eventStream.Err())

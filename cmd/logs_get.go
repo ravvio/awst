@@ -19,7 +19,7 @@ func init() {
 
 	logsGetCommand.Flags().StringP("filter", "f", "", "pattern filter on log events")
 	logsGetCommand.Flags().String("since", "1d", "moment in time to start the search, can be absolute or relative")
-	logsGetCommand.Flags().String("until", "", "moment in time to end the search, can be absolute or relative")
+	logsGetCommand.Flags().String("until", "0s", "moment in time to end the search, can be absolute or relative")
 
 	logsGetCommand.Flags().BoolP("tail", "t", false, "start live tail")
 }
@@ -101,11 +101,12 @@ var logsGetCommand = &cobra.Command{
 
 		r := tlog.DefaultRenderer()
 		for _, event := range logEvents {
-			r.Render(&tlog.Log{
+			err = r.Render(&tlog.Log{
 				GroupName: &logGroupName,
 				Timestamp: event.Timestamp,
 				Message:   event.Message,
 			})
+			utils.CheckErr(err)
 		}
 
 		// TODO Tail
