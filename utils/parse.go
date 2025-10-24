@@ -74,3 +74,17 @@ func ParseDuration(duration string) (int64, error) {
 
 	return t, nil
 }
+
+func ParseTimestamp(now int64, timestamp *string) (*int64, error) {
+	if timestamp == nil {
+		return nil, nil
+	} else if t, err := ParseDatetime(*timestamp); err == nil && t.UnixMilli() >= 0 {
+		m := t.UnixMilli()
+		return &m, nil
+	} else if d, err := ParseDuration(*timestamp); err == nil {
+		m := now - d
+		return &m, nil
+	} else {
+		return nil, fmt.Errorf("could not parse '%s' timestamp", *timestamp)
+	}
+}

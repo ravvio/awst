@@ -27,9 +27,7 @@ func init() {
 	s3command.AddCommand(s3listCommand)
 
 	rootCmd.AddCommand(logsCommand)
-	logsCommand.AddCommand(logsListCommad)
-	logsCommand.AddCommand(logsGetCommand)
-	logsCommand.AddCommand(logsSearchCommand)
+	rootCmd.AddCommand(loggCommand)
 }
 
 var rootCmd = &cobra.Command{
@@ -39,10 +37,5 @@ var rootCmd = &cobra.Command{
 
 var s3command = &cobra.Command{
 	Use:   "s3",
-	Short: "",
-}
-
-var logsCommand = &cobra.Command{
-	Use:   "logs",
 	Short: "",
 }

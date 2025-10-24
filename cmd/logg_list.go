@@ -15,21 +15,21 @@ import (
 )
 
 func init() {
-	logsListCommad.Flags().BoolP("all", "a", false, "fetch all log groups")
-	logsListCommad.Flags().Int32P("limit", "l", 50, "limit number of groups to fetch")
+	loggListCommad.Flags().BoolP("all", "a", false, "fetch all log groups")
+	loggListCommad.Flags().Int32P("limit", "l", 50, "limit number of groups to fetch")
 
-	logsListCommad.Flags().StringP("pattern", "e", "", "pattern filter on log group name")
-	logsListCommad.Flags().StringP("prefix", "p", "", "prefix filter on log group name")
+	loggListCommad.Flags().StringP("pattern", "e", "", "pattern filter on log group name")
+	loggListCommad.Flags().StringP("prefix", "p", "", "prefix filter on log group name")
 
-	logsListCommad.Flags().Bool("retention", false, "show log groups retention")
-	logsListCommad.Flags().Bool("arn", false, "show log groups arn")
-	logsListCommad.Flags().Bool("streams", false, "show log groups streams")
+	loggListCommad.Flags().Bool("retention", false, "show log groups retention")
+	loggListCommad.Flags().Bool("arn", false, "show log groups arn")
+	loggListCommad.Flags().Bool("streams", false, "show log groups streams")
 
-	logsListCommad.MarkFlagsMutuallyExclusive("pattern", "prefix")
-	logsListCommad.MarkFlagsMutuallyExclusive("all", "limit")
+	loggListCommad.MarkFlagsMutuallyExclusive("pattern", "prefix")
+	loggListCommad.MarkFlagsMutuallyExclusive("all", "limit")
 }
 
-var logsListCommad = &cobra.Command{
+var loggListCommad = &cobra.Command{
 	Use:   "list",
 	Short: "List cloudwatch log groups",
 	Run: func(cmd *cobra.Command, args []string) {

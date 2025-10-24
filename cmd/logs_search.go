@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
@@ -16,140 +14,66 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
-	logsSearchCommand.Flags().StringP("pattern", "e", "", "pattern filter on log group name")
-	logsSearchCommand.Flags().StringP("prefix", "p", "", "prefix filter on log group name")
-	logsSearchCommand.Flags().Bool("all-groups", false, "do not limit of log groups to use")
-	logsSearchCommand.Flags().Int32("limit-groups", 50, "limit number of log groups to use")
-
-	logsSearchCommand.Flags().BoolP("all", "a", false, "do not limit of log events to fetch from each group")
-	logsSearchCommand.Flags().Int32P("limit", "l", 10000, "limit number of log events to fetch from each group")
-
-	logsSearchCommand.Flags().StringP("filter", "f", "", "pattern filter on log events")
-	logsSearchCommand.Flags().String("since", "1d", "moment in time to start the search, can be absolute or relative")
-	logsSearchCommand.Flags().String("until", "0s", "moment in time to end the search, can be absolute or relative")
-
-	logsSearchCommand.Flags().BoolP("tail", "t", false, "start live tail")
-
-	logsSearchCommand.Flags().Int("max-par", 5, "maximum parallelization for fetching")
-
-	logsSearchCommand.MarkFlagsOneRequired("pattern", "prefix")
-
-	logsSearchCommand.MarkFlagsMutuallyExclusive("pattern", "prefix")
-	logsSearchCommand.MarkFlagsMutuallyExclusive("all", "limit")
-}
-
 var logsSearchCommand = &cobra.Command{
 	Use:   "search",
 	Short: "Search for cloudwatch log groups matching given pattern or prefix and retrive logs",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+
 		// Load config
-		cfg, err := loadAwsConfig(context.TODO())
-		utils.CheckErr(err)
-
-		now := time.Now()
-
+		cfg, err := loadAwsConfig(ctx)
+		if err != nil {
+			return err
+		}
 		client := cloudwatchlogs.NewFromConfig(cfg)
-
-		// Setup params for descibe operation
-		describeParams := &cloudwatchlogs.DescribeLogGroupsInput{}
-
-		pattern, err := cmd.Flags().GetString("pattern")
-		utils.CheckErr(err)
-		if pattern != "" {
-			describeParams.LogGroupNamePattern = &pattern
-		}
-
-		prefix, err := cmd.Flags().GetString("prefix")
-		utils.CheckErr(err)
-		if prefix != "" {
-			describeParams.LogGroupNamePrefix = &prefix
-		}
-
-		allGroups, err := cmd.Flags().GetBool("all-groups")
-		utils.CheckErr(err)
-		limitGroups, err := cmd.Flags().GetInt32("limit-groups")
-		utils.CheckErr(err)
 
 		// Request describe
 		groupsFetcher := fetch.NewGroupsFetcher(
 			context.TODO(),
 			&fetch.GroupsFetcherClient{
 				Client: client,
-				Params: *describeParams,
+				Params: cloudwatchlogs.DescribeLogGroupsInput{
+					LogGroupNamePattern: patternGroupFlag,
+					LogGroupNamePrefix: prefixGroupFlag,
+				},
 			},
 		)
-		if !allGroups {
-			groupsFetcher = groupsFetcher.WithLimit(limitGroups)
+		if !allGroupsFlag {
+			groupsFetcher = groupsFetcher.WithLimit(limitGroupsFlag)
 		}
 		logGroups, err := groupsFetcher.All()
-		utils.CheckErr(err)
+		if err != nil {
+			return err
+		}
 
+		// Render
 		if len(logGroups) == 0 {
 			style.PrintInfo("No groups found")
-			return
+			return nil
 		}
 
 		style.PrintInfo("%d groups found", len(logGroups))
 
-		// Request logs
-		filter, err := cmd.Flags().GetString("filter")
-		utils.CheckErr(err)
-		limitEvents, err := cmd.Flags().GetInt32("limit")
-		utils.CheckErr(err)
-		allEvents, err := cmd.Flags().GetBool("all")
-		utils.CheckErr(err)
-		tail, err := cmd.Flags().GetBool("tail")
-		utils.CheckErr(err)
-
-		sinceDate, err := cmd.Flags().GetString("since")
-		var sinceUnix int64
-		utils.CheckErr(err)
-		if sinceDate != "" {
-			if t, err := utils.ParseDatetime(sinceDate); err == nil && t.UnixMilli() >= 0 {
-				sinceUnix = t.UnixMilli()
-			} else if d, err := utils.ParseDuration(sinceDate); err == nil {
-				sinceUnix = now.UnixMilli() - d
-			} else {
-				utils.CheckErr(fmt.Errorf("Could not parse 'since' timestamp"))
-			}
-		}
-
-		untilDate, err := cmd.Flags().GetString("until")
-		var untilUnix int64
-		utils.CheckErr(err)
-		if untilDate != "" {
-			if t, err := utils.ParseDatetime(untilDate); err == nil && t.UnixMilli() >= 0 {
-				untilUnix = t.UnixMilli()
-			} else if d, err := utils.ParseDuration(untilDate); err == nil {
-				untilUnix = now.UnixMilli() - d
-			} else {
-				utils.CheckErr(fmt.Errorf("Could not parse 'until' timestamp"))
-			}
-		}
-
-		maxPar, err := cmd.Flags().GetInt("max-par")
-		utils.CheckErr(err)
-		semaphore := make(chan struct{}, maxPar)
-
+		// Set up sempaphore
+		semaphore := make(chan struct{}, threadsFlag)
 		var wg sync.WaitGroup = sync.WaitGroup{}
 
 		logs := []tlog.Log{}
 		for _, group := range logGroups {
-			fetcher := fetch.NewLogsFetcher(
+			logsFetcher := fetch.NewLogsFetcher(
 				context.TODO(),
 				&fetch.LogsFetcherClient{
 					Client: client,
 					Params: cloudwatchlogs.FilterLogEventsInput{
 						LogGroupName:  group.LogGroupName,
-						StartTime:     &sinceUnix,
-						EndTime:       &untilUnix,
-						FilterPattern: &filter,
+						StartTime:     sinceUnix,
+						EndTime:       untilUnix,
+						FilterPattern: filterLogsFlag,
 					},
 				},
 			)
-			if !allEvents {
-				fetcher = fetcher.WithLimit(limitEvents)
+			if !allLogsFlag {
+				logsFetcher = logsFetcher.WithLimit(limitLogsFlag)
 			}
 
 			// Acquire semaphore
@@ -157,8 +81,11 @@ var logsSearchCommand = &cobra.Command{
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				res, err := fetcher.All()
-				utils.CheckErr(err)
+				res, err := logsFetcher.All()
+				if err != nil {
+					style.PrintError("could not fetch logs: %s", err)
+					<-semaphore
+				}
 				for _, log := range res {
 					logs = append(
 						logs,
@@ -183,8 +110,8 @@ var logsSearchCommand = &cobra.Command{
 			utils.CheckErr(err)
 		}
 
-		if !tail {
-			return
+		if !tailLogsFlag {
+			return nil
 		}
 
 		logChan := make(chan tlog.Log)
@@ -200,7 +127,7 @@ var logsSearchCommand = &cobra.Command{
 			}
 
 			tailParams := &cloudwatchlogs.StartLiveTailInput{
-				// LogEventFilterPattern: &filter,
+				LogEventFilterPattern: filterLogsFlag,
 				LogGroupIdentifiers:   identifiers,
 			}
 
